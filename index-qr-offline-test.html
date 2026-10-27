@@ -4,6 +4,15 @@
 .loginbox{max-width:480px;margin:20px auto}.error{color:#9c1723}.ok{color:#11633b}.smallbtn{padding:7px 10px;min-height:36px}.record{border-bottom:1px solid #dbe3ed;padding:12px 0}.check-grid button:disabled{opacity:1}.topnav{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}.tablewrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid #dbe3ed;padding:8px;text-align:left;white-space:nowrap}th{background:#e7edf5}code{overflow-wrap:anywhere} </style></head><body><header><small>CITI FIELD · SECURITY</small><div class="topnav"><h1>Patrol Log Dashboard</h1><button id="logout" class="secondary hidden">Sign Out</button></div></header><main><div id="status" class="status">Loading…</div>
 <section id="login" class="card loginbox"><h2>Secure Sign In</h2><p class="muted">Sign in using the assigned Guard or Management account.</p><form id="loginForm"><label>Email</label><input id="email" type="email" required autocomplete="username"><label>Password</label><input id="password" type="password" required autocomplete="current-password"><button type="submit" style="margin-top:15px;width:100%">Sign In</button></form><p id="loginError" class="error"></p></section>
 <section id="guardHome" class="hidden"><div class="card"><h2>Guard Patrol Assignments</h2><p class="muted">Start a new patrol or resume a shared patrol with its access code. Each guard must enter their own name when recording a check.</p><div id="assignments"></div></div><div class="card"><h2>Resume a Shared Patrol</h2><label>Patrol access code</label><input id="resumeCode" placeholder="Paste the patrol access code"><button id="resumeButton" style="margin-top:10px">Resume Patrol</button><p class="muted">The iPad remembers codes for patrols started or opened here. Do not share access codes outside the assigned patrol team.</p><div id="recentPatrols"></div>
+  
+<div class="card" style="margin-top:20px;text-align:center">
+  <h2>Finished With Your Shift?</h2>
+  <p class="muted">Make sure all your patrols are complete before ending your shift.</p>
+  <button id="endShift" class="danger" style="width:100%">
+    End Shift
+  </button>
+</div>
+
 <div style="margin-top:20px;padding:16px;background:#f3f6fa;border-radius:12px;text-align:center">
   <h3>Finished with your shift?</h3>
   <p class="muted">Return the iPad to the Security office when done.</p>
