@@ -65,7 +65,45 @@ $('logout').onclick=signOut;
 $('loginForm').onsubmit=async e=>{e.preventDefault();$('loginError').textContent='';try{status('Signing in…');const data=await api('/auth/v1/token?grant_type=password',{method:'POST',body:{email:$('email').value.trim(),password:$('password').value},auth:false});setSession(data);await enterDashboard()}catch(e){$('loginError').textContent=e.message;status('Sign in failed')}};
 async function enterDashboard(){const uid=session?.user?.id;if(!uid)throw Error('No signed-in account');const rows=await api('/rest/v1/user_roles?select=role&user_id=eq.'+encodeURIComponent(uid));role=rows?.[0]?.role;if(role==='management'){show('management');status('Management connected to Supabase');await loadManagement()}else if(role==='guard'){status('Guard connected to Supabase · Internet required');await guardHome()}else{signOut();throw Error('No Guard or Management role assigned to this account')}}
 function renderAssignments(){ $('assignments').innerHTML=definitions.map(d=>`<div class="area row"><strong>${esc(d.title)}</strong><button class="smallbtn" data-new="${d.id}">New Patrol</button></div>`).join('');document.querySelectorAll('[data-new]').forEach(b=>b.onclick=()=>newPatrol(b.dataset.new))}
-async function guardHome(){await loadGuardRoster();activeCode=null;renderAssignments();$('recentPatrols').innerHTML=storedCodes().map(c=>`<div class="record row"><span>${esc(c.title)}</span><button class="smallbtn secondary" data-code="${esc(c.code)}">Resume</button></div>`).join('');document.querySelectorAll('[data-code]').forEach(b=>b.onclick=()=>resume(b.dataset.code));show('guardHome')}
+async function guardHome(){
+  await loadGuardRoster();
+  activeCode = null;
+  renderAssignments();
+
+  const saved = storedCodes();
+  const valid = [];
+
+  for (const c of saved) {
+    try {
+      const data = await api('/rest/v1/rpc/resume_patrol', {
+        method: 'POST',
+        body: {p_access_code: c.code}
+      });
+
+      if (data?.patrol && data.patrol.status === 'active') {
+        valid.push(c);
+      }
+    } catch (error) {
+      console.warn('Could not verify saved patrol:', error);
+      valid.push(c);
+    }
+  }
+
+  localStorage.setItem(CODES, JSON.stringify(valid));
+
+  $('recentPatrols').innerHTML = valid.map(c =>
+    `<div class="record row">
+      <span>${esc(c.title)}</span>
+      <button class="smallbtn secondary" data-code="${esc(c.code)}">Resume</button>
+    </div>`
+  ).join('');
+
+  document.querySelectorAll('[data-code]').forEach(
+    b => b.onclick = () => resume(b.dataset.code)
+  );
+
+  show('guardHome');
+}
 function newPatrol(id){activeDef=definitions.find(d=>d.id===id);$('setupTitle').textContent='Start: '+activeDef.title;$('guard').value='';$('supervisor').value='';const h=new Date().getHours();$('shift').value=h<8?'00-08':h<16?'08-16':'16-00';$('shiftDate').value=localDate();$('vehicleFields').innerHTML=activeDef.mobile?'<div><label>Patrol vehicle</label><select id="patrolVehicle"><option value="">Select</option><option>2025 Ford Explorer BLK (KS27370)</option><option>2025 Ford Explorer BLK (KS27371)</option></select></div><div><label>Transport vehicle</label><select id="transportVehicle"><option value="">Select</option><option>2024 Ford Expedition BLK (KS27369)</option><option>2024 Cadillac Escalade WHT (2796MR)</option></select></div>':'';show('setup')}
 $('cancelStart').onclick=guardHome;
 $('startForm').onsubmit=async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;try{status('Creating patrol…');const r=await api('/rest/v1/rpc/start_patrol',{method:'POST',body:{p_guard_name:$('guard').value.trim(),p_supervisor:$('supervisor').value,p_patrol_type:activeDef.id,p_shift_date:$('shiftDate').value,p_shift_name:$('shift').value}});const item=r?.[0];if(!item?.patrol_access_code)throw Error('No patrol code returned');const code=item.patrol_access_code;saveCode(code,activeDef.title+' · '+$('shiftDate').value);await resume(code);const details={};if($('patrolVehicle')?.value)details.patrolVehicle=$('patrolVehicle').value;if($('transportVehicle')?.value)details.transportVehicle=$('transportVehicle').value;if(Object.keys(details).length){await api('/rest/v1/rpc/save_patrol_details',{method:'POST',body:{p_access_code:code,p_notes:'',p_details:details}});await resume(code)}}catch(err){alert('Patrol could not be started: '+err.message);status('Error starting patrol')}finally{btn.disabled=false}};
