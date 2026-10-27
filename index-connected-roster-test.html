@@ -93,7 +93,7 @@ async function guardHome(){
     valid.push(c);
   }
   }
-
+  }
   localStorage.setItem(CODES, JSON.stringify(valid));
 
   $('recentPatrols').innerHTML = valid.map(c =>
