@@ -257,4 +257,13 @@ $('exportAll').onclick=()=>{
   const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='CitiField_Patrol_Management.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);
 };
 async function init(){try{if(typeof SUPABASE_URL==='undefined'||typeof SUPABASE_PUBLISHABLE_KEY==='undefined')throw Error('supabase-config.js is missing');$('supervisor').innerHTML='<option value="">Select supervisor</option>'+supervisors.map(n=>`<option>${esc(n)}</option>`).join('');try{session=JSON.parse(localStorage.getItem(KEY)||'null')}catch{}if(session){await enterDashboard()}else{show('login');status('Connected test version · Sign in required')}}catch(e){show('login');status('Setup issue: '+e.message)}}init();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js')
+      .then(() => console.log('Offline app service worker registered'))
+      .catch(error => console.error('Service worker error:', error));
+  });
+}
 </script></body></html>
+
