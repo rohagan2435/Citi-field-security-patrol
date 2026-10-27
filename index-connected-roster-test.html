@@ -83,10 +83,15 @@ async function guardHome(){
       if (data?.patrol && data.patrol.status === 'active') {
         valid.push(c);
       }
-    } catch (error) {
-      console.warn('Could not verify saved patrol:', error);
-      valid.push(c);
-    }
+  } catch (error) {
+  const message = String(error.message || '').toLowerCase();
+
+  if (message.includes('no patrol found')) {
+    console.log('Removing deleted patrol from Resume list:', c.title);
+  } else {
+    console.warn('Could not verify saved patrol:', error);
+    valid.push(c);
+  }
   }
 
   localStorage.setItem(CODES, JSON.stringify(valid));
