@@ -1,0 +1,275 @@
+<!doctype html><html lang="en"><head>
+<link rel="manifest" href="./manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Security Patrol">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#102744"><title>Citi Field Security Patrol · Offline Development</title><style>
+:root{font-family:system-ui,-apple-system,Arial;color:#14243b;background:#f3f6fa}*{box-sizing:border-box}body{margin:0}header{background:#102744;color:white;padding:20px 18px}header small{letter-spacing:2px;color:#b9d3e8}header h1{font-size:22px;margin:7px 0 0}main{max-width:850px;margin:auto;padding:16px}.card{background:white;border:1px solid #dbe3ed;border-radius:15px;padding:17px;margin-bottom:14px;box-shadow:0 2px 6px #0e284009}h2{font-size:19px;margin:0 0 12px}h3{font-size:16px;margin:16px 0 8px}p{line-height:1.5}label{display:block;font-weight:650;margin:12px 0 5px}input,select,textarea{width:100%;font:inherit;padding:12px;border:1px solid #b9c8d9;border-radius:9px;background:white}button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:12px 14px;font-weight:650;background:#12365d;color:white;min-height:46px}button:disabled{background:#dbe8e0;color:#28563b;cursor:default}button.secondary{background:#e7edf5;color:#18395d}button.danger{background:#8e2430}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #f6a22a}.stack{display:grid;gap:10px}.row{display:flex;align-items:center;justify-content:space-between;gap:12px}.muted{color:#5b6d80;font-size:13px}.pill{border-radius:30px;background:#e9f6ee;color:#126136;padding:5px 9px;font-size:12px;font-weight:750}.area{border:1px solid #d9e3ec;border-radius:12px;padding:12px;margin:8px 0}.area .row{align-items:flex-start}.check-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-top:10px}.check-grid button{padding:8px 3px;font-size:12px;min-height:60px;white-space:normal;overflow-wrap:anywhere}.area-comment{margin-top:10px}.area-comment textarea{width:100%;min-height:52px}.area-comment button{margin-top:6px}.check-grid button.saved{background:#e7f5ed;color:#145c35}.check-grid button.next{background:#12365d}.check-grid button.later{background:#e7edf5;color:#5a6d80}.nav{display:flex;gap:8px;flex-wrap:wrap}.nav button{flex:1}.hidden{display:none!important}.status{font-size:13px;padding:9px 12px;background:#e9f1f8;border-radius:10px}.section{padding:8px 0;border-bottom:2px solid #e4eaf1}.mini{font-size:12px;color:#61738a}.note{padding:12px;background:#fff8e5;border-radius:10px;font-size:13px}.summary{font-weight:700}.split{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:480px){.split{grid-template-columns:1fr}.check-grid{gap:4px}.check-grid button{font-size:11px}}@media print{button,.no-print{display:none!important}main{max-width:none}}
+
+.loginbox{max-width:480px;margin:20px auto}.error{color:#9c1723}.ok{color:#11633b}.smallbtn{padding:7px 10px;min-height:36px}.record{border-bottom:1px solid #dbe3ed;padding:12px 0}.check-grid button:disabled{opacity:1}.topnav{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}.tablewrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid #dbe3ed;padding:8px;text-align:left;white-space:nowrap}th{background:#e7edf5}code{overflow-wrap:anywhere} </style></head><body><header><small>CITI FIELD · SECURITY</small><div class="topnav"><h1>Patrol Log Dashboard</h1><button id="logout" class="secondary hidden">Sign Out</button></div></header><main><div id="status" class="status">Loading…</div>
+<section id="login" class="card loginbox"><h2>Secure Sign In</h2><p class="muted">Sign in using the assigned Guard or Management account.</p><form id="loginForm"><label>Email</label><input id="email" type="email" required autocomplete="username"><label>Password</label><input id="password" type="password" required autocomplete="current-password"><button type="submit" style="margin-top:15px;width:100%">Sign In</button></form><p id="loginError" class="error"></p></section>
+<section id="guardHome" class="hidden"><div class="card"><h2>Guard Patrol Assignments</h2><p class="muted">Start a new patrol or resume a shared patrol with its access code. Each guard must enter their own name when recording a check.</p><div id="assignments"></div></div><div class="card"><h2>Resume a Shared Patrol</h2><label>Patrol access code</label><input id="resumeCode" placeholder="Paste the patrol access code"><button id="resumeButton" style="margin-top:10px">Resume Patrol</button><p class="muted">The iPad remembers codes for patrols started or opened here. Do not share access codes outside the assigned patrol team.</p><div id="recentPatrols"></div>
+
+<div style="margin-top:20px;padding:16px;background:#f3f6fa;border-radius:12px;text-align:center">
+  <h3>Finished with your shift?</h3>
+  <p class="muted">Return the iPad to the Security office when done.</p>
+  <button id="endShift" class="danger" style="width:100%">
+    End Shift
+  </button>
+</div>
+</div></section>
+<section id="setup" class="card hidden"><h2 id="setupTitle">Start Patrol</h2><form id="startForm"><label>Starting guard's full name</label>
+<select id="guard" required><option value="">Select guard</option></select><label>Supervisor</label><select id="supervisor" required></select><label>Shift</label><select id="shift"><option value="00-08">12 AM – 8 AM</option><option value="08-16">8 AM – 4 PM</option><option value="16-00">4 PM – 12 AM</option></select><label>Shift start date</label><input id="shiftDate" type="date" required><div id="vehicleFields" class="split"></div><div class="nav" style="margin-top:14px"><button type="submit">Start Patrol</button><button type="button" class="secondary" id="cancelStart">Cancel</button></div></form></section>
+<section id="patrol" class="hidden"><div class="card"><div class="row"><h2 id="patrolTitle"></h2><span class="pill" id="patrolStatus">ACTIVE</span></div><p id="patrolMeta" class="muted"></p><p id="progress" class="summary"></p><label>Guard completing the next checks</label>
+<select id="checkingGuard"><option value="">Select guard completing check</option></select>
+<p class="note">Each submitted check records the guard name and Supabase server time. Previously recorded checks cannot be edited.</p><div class="nav"><button id="backHome" class="secondary">Home</button><button id="copyCode" class="secondary">Copy Patrol Access Code</button></div></div><div class="card"><h2>Area Checks</h2><div id="areas"></div></div><div class="card"><h2>Additional Log Details</h2><label>Meal relief posts / times</label><textarea id="meal" rows="2"></textarea><div id="mobileDetails" class="hidden"><label>Special event parking location</label><input id="mobileParking" placeholder="Location"><label>Personals given / time</label><textarea id="mobilePersonals" rows="2" placeholder="1.&#10;2."></textarea><label>Meal breaks / time</label><textarea id="mobileMeals" rows="2" placeholder="1.&#10;2."></textarea><label>Driving jobs (include start/end time)</label><textarea id="mobileDriving" rows="3" placeholder="1.&#10;2.&#10;3."></textarea></div><label>Additional notes</label><textarea id="notes" rows="4"></textarea><button id="saveDetails" class="secondary" style="margin-top:10px">Save Notes & Details</button></div><div class="card"><button id="finish" class="danger">Finish This Patrol</button></div></section>
+<section id="management" class="hidden"><div class="card"><h2>Management · Patrol Records</h2><p class="muted">Centrally saved patrols across devices. Export is available only to the Management account.</p><div class="split"><div><label for="filterDate">Patrol date</label><input id="filterDate" type="date"></div><div><label for="filterType">Patrol type</label><select id="filterType"><option value="">All patrol types</option><option value="tunnel">Tunnel &amp; Perimeter</option><option value="mobile">Mobile Patrol</option><option value="promenade">Promenade · Excelsior · Empire</option><option value="field">Field Level &amp; Suites</option></select></div></div><div class="split"><div><label for="filterGuard">Guard name</label><select id="filterGuard"><option value="">All guards</option></select></div><div><label for="filterSupervisor">Supervisor</label><select id="filterSupervisor"><option value="">All supervisors</option><option>John Bonner</option><option>Luis Cruz</option><option>Mohamed Elhanafi</option><option>Gustavo Este</option><option>John Mendez</option><option>John Markoulis</option><option>MariAnn Catalanotto</option><option>Jason Garcia</option><option>Robert Fitzpatrick</option></select></div></div><label for="filterShift">Shift</label><select id="filterShift"><option value="">All shifts</option></select><label for="filterStatus">Patrol status</label><select id="filterStatus"><option value="">All statuses</option><option value="active">Active</option><option value="finished">Finished</option></select><div class="nav" style="margin-top:12px"><button id="clearFilters" class="secondary">Clear Filters</button><button id="refreshRecords" class="secondary">Refresh Records</button><button id="exportAll">Export Displayed (CSV for Excel)</button></div><p id="managementCount" class="muted"></p><div class="nav" style="margin:10px 0"><button id="selectVisible" class="secondary" type="button">Select displayed patrols</button><button id="clearSelection" class="secondary" type="button">Clear selection</button><button id="deleteSelected" type="button" style="background:#9e1c24;color:white">Delete selected patrols</button></div><p class="muted" id="selectionCount">0 patrols selected. Only select records you have verified are tests. Deletion is permanent.</p><div id="managementRecords"></div></div></section>
+<p class="note">DEVELOPMENT BUILD — The guard roster can be cached for later use, but starting, resuming, recording, and finishing patrols still require Supabase. Do not rely on this build for offline checks.</p><p class="note">TEST VERSION — Do not use for real Security Department patrols until account permissions, patrol access controls, and location validation have been tested and approved. Internet access is required; offline checks are not supported in this connected version.</p></main><script src="supabase-config.js"></script><script>
+'use strict';
+const supervisors=['John Bonner','Luis Cruz','Mohamed Elhanafi','Gustavo Este','John Mendez','John Markoulis','MariAnn Catalanotto','Jason Garcia','Robert Fitzpatrick'];
+const definitions=[
+{id:'tunnel',title:'Tunnel & Perimeter',sections:[['Perimeter Gates and Doors',['LF Gate','Stengel','Seaver','Rotunda','Team Store','Hodges','Shea Door','Players Lobby','RF Gate','Ebbs Doors','Expo Center','Speak Easy Drs.','BP Gate','Admin Bldg.','K Corner','K Corner Gate','N/E Gate','Side Exits (all)']],['Tunnel Doors',['Event Staff','Visitors CH','Aux. Locker','Visitors CH Back','Retail Storage 1','Ticket Office','Lost & Found','HOF/Team Store','Diamond Club','Owner Suite','Retail Storage 2','Press Conf. Rm.','Sprint Track','Mets CH Back','Mets CH Front','Ballpark Ops','Citifield Shops','BCC Gate','Main Commissary']]],meal:true},
+{id:'mobile',title:'Mobile Patrol',sections:[['Areas Patrolled',['Lot A','Lot B','Lot C','Lot D','Lot E','Lot F','Lot G','South Field','Perimeter Gates','Perimeter Drs.','Back of House','Fire Lane']]],mobile:true},
+{id:'promenade',title:'Promenade · Excelsior · Empire',sections:[['Promenade Level',['Sec. 402–409 Concession','Prom. Level IDF/PDR Rms. Hodges/Seaver Stairs','Sec. 409/412 IDF/PDR Rms','1st Aid Rm. Opp. 417','Hudson Whiskey Club NY','Behind Hudson Whiskey Club Concession Stands','Mets Team Store Behind Prom. Hudson Whisky','Sec. 420–425 Concessions','Sec. 430/433/436 Concession','Sec. 431/436 IDF/PDR Rms','Mets Dugout Opp. Sec. 431']],['Excelsior Level',['Coke Corner Concessions','Roof Gate at Coke Corner','Mets Dugout Excel. RF Elev.','Sec. 309/329/338 IDF/PDR','Opp. 312–310 Concession','Mets Dugout Opp. Sec. 327','Opp. 327–326 Concession','Piazza Clb / Concessions','Prep Room Behind Bar','Storage Rm. Inside Prep. Rm.','Writing Press 1 & 2 Opp. Excel. Hodges Stairs','Media Lounge Inside Plaza','Excel. Level Hodges/Seaver Stairs IDF/PDR Rms','1st Aid Opposite Sec. 329','Caesar’s Sports Book','Concession Stands LF Landing']]],meal:true},
+{id:'field',title:'Field Level & Suites',sections:[['Concession Stands',['Sec. 101–105','Sec. 110–114','Sec. 121–125','Sec. 135–137','Beer Garden']],['IDF/PDR Rms',['Sec. 103','Sec. 110','Sec. 125','Seaver Stairs','Hodges Stairs','Beer Garden','Sec. 132','Sec. 138']],['Stores',['Dug Out Sec. 106/131/141','47 Sec. 106','Team Store Hodges Stairs']],['Other Locations / Empire Suites Level',['1st Aid / Ticket','Hyundai / Owners Suite','Fan Asst. Sec. 142','Empire Lounge','Empire Auditorium','Empire Suites Doors']]],meal:true}
+];
+
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let session=null,role=null,activeCode=null,activePatrol=null,activeChecks=[],activeDef=null,managementRows=[];const selectedPatrolIds=new Set();
+const KEY='cf_patrol_test_session',CODES='cf_patrol_codes';
+function status(msg){$('status').textContent=msg}
+function show(id){['login','guardHome','setup','patrol','management'].forEach(k=>$(k).classList.toggle('hidden',k!==id));$('logout').classList.toggle('hidden',id==='login');window.scrollTo(0,0)}
+function localDate(){const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)}
+function shiftLabel(s){return {'00-08':'12 AM – 8 AM','08-16':'8 AM – 4 PM','16-00':'4 PM – 12 AM'}[s]||s}
+function storedCodes(){try{return JSON.parse(localStorage.getItem(CODES)||'[]')}catch{return []}}
+function saveCode(code,title){let x=storedCodes().filter(v=>v.code!==code);x.unshift({code,title});localStorage.setItem(CODES,JSON.stringify(x.slice(0,30)))}
+function removeCode(code){localStorage.setItem(CODES,JSON.stringify(storedCodes().filter(v=>v.code!==code)))}
+async function api(path,{method='GET',body,auth=true}={}){
+  if(auth)await refreshIfNeeded();
+  const res=await fetch(SUPABASE_URL+path,{method,headers:{'apikey':SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json',...(auth&&session?{'Authorization':'Bearer '+session.access_token}:{}),...(method==='GET'?{}:{'Prefer':'return=representation'})},...(body===undefined?{}:{body:JSON.stringify(body)})});
+  const raw=await res.text();let data;try{data=raw?JSON.parse(raw):null}catch{data=raw}
+  if(!res.ok)throw new Error(data?.message||data?.error_description||data?.error||`Request failed (${res.status})`);
+  return data;
+}
+const ROSTER_CACHE = 'cf_patrol_guard_roster_v1';
+function applyGuardRoster(names) {
+  const clean=[...new Set((names||[]).map(n=>String(n||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  for (const id of ['guard','checkingGuard']) {
+    const select=$(id);if(!select)continue;
+    const selected=select.value;
+    select.innerHTML='<option value="">Select guard</option>'+clean.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    if(clean.includes(selected))select.value=selected;
+  }
+  return clean.length;
+}
+function loadCachedGuardRoster(){
+  try { const names=JSON.parse(localStorage.getItem(ROSTER_CACHE)||'[]');
+    return Array.isArray(names)?applyGuardRoster(names):0;
+  } catch(e){console.warn('Cached roster unavailable',e);return 0;}
+}
+async function loadGuardRoster(){
+  const cached=loadCachedGuardRoster();
+  try {
+    const rows=await api('/rest/v1/guards?select=full_name&active=eq.true&order=full_name.asc');
+    const names=rows.map(r=>r.full_name).filter(Boolean);
+    if(!names.length)throw Error('No active guards returned');
+    applyGuardRoster(names);
+    try {localStorage.setItem(ROSTER_CACHE,JSON.stringify(names));}catch(e){console.warn('Could not cache roster',e);}
+  }catch(e){
+    console.warn('Could not refresh guard roster:',e);
+    if(!cached)status('Guard roster unavailable. Connect to the internet and sign in to load it.');
+  }
+}
+async function refreshIfNeeded(){if(!session)return;if(Date.now()<session.expires_at*1000-60000)return;const res=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{'apikey':SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:session.refresh_token})});const data=await res.json();if(!res.ok){signOut();throw Error('Session expired. Please sign in again.')}setSession(data)}
+function setSession(d){session={access_token:d.access_token,refresh_token:d.refresh_token,expires_at:Math.floor(Date.now()/1000)+(d.expires_in||3600),user:d.user};localStorage.setItem(KEY,JSON.stringify(session))}
+function signOut(){session=null;role=null;activeCode=null;localStorage.removeItem(KEY);show('login');status('Signed out');$('password').value=''}
+$('logout').onclick=signOut;
+$('loginForm').onsubmit=async e=>{e.preventDefault();$('loginError').textContent='';try{status('Signing in…');const data=await api('/auth/v1/token?grant_type=password',{method:'POST',body:{email:$('email').value.trim(),password:$('password').value},auth:false});setSession(data);await enterDashboard()}catch(e){$('loginError').textContent=e.message;status('Sign in failed')}};
+async function enterDashboard(){const uid=session?.user?.id;if(!uid)throw Error('No signed-in account');const rows=await api('/rest/v1/user_roles?select=role&user_id=eq.'+encodeURIComponent(uid));role=rows?.[0]?.role;if(role==='management'){show('management');status('Management connected to Supabase');await loadManagement()}else if(role==='guard'){status('Guard connected to Supabase · Internet required');await guardHome()}else{signOut();throw Error('No Guard or Management role assigned to this account')}}
+function renderAssignments(){ $('assignments').innerHTML=definitions.map(d=>`<div class="area row"><strong>${esc(d.title)}</strong><button class="smallbtn" data-new="${d.id}">New Patrol</button></div>`).join('');document.querySelectorAll('[data-new]').forEach(b=>b.onclick=()=>newPatrol(b.dataset.new))}
+async function guardHome(){
+  await loadGuardRoster();
+  activeCode = null;
+  renderAssignments();
+
+  const saved = storedCodes();
+  const valid = [];
+
+  for (const c of saved) {
+    try {
+      const data = await api('/rest/v1/rpc/resume_patrol', {
+        method: 'POST',
+        body: {p_access_code: c.code}
+      });
+
+      if (data?.patrol && data.patrol.status === 'active') {
+        valid.push(c);
+      }
+  } catch (error) {
+  const message = String(error.message || '').toLowerCase();
+
+  if (message.includes('no patrol found')) {
+    console.log('Removing deleted patrol from Resume list:', c.title);
+  } else {
+    console.warn('Could not verify saved patrol:', error);
+    valid.push(c);
+  }
+  }
+  }
+  localStorage.setItem(CODES, JSON.stringify(valid));
+
+  $('recentPatrols').innerHTML = valid.map(c =>
+    `<div class="record row">
+      <span>${esc(c.title)}</span>
+      <button class="smallbtn secondary" data-code="${esc(c.code)}">Resume</button>
+    </div>`
+  ).join('');
+
+  document.querySelectorAll('[data-code]').forEach(
+    b => b.onclick = () => resume(b.dataset.code)
+  );
+
+  show('guardHome');
+}
+function newPatrol(id){activeDef=definitions.find(d=>d.id===id);$('setupTitle').textContent='Start: '+activeDef.title;$('guard').value='';$('supervisor').value='';const h=new Date().getHours();$('shift').value=h<8?'00-08':h<16?'08-16':'16-00';$('shiftDate').value=localDate();$('vehicleFields').innerHTML=activeDef.mobile?'<div><label>Patrol vehicle</label><select id="patrolVehicle"><option value="">Select</option><option>2025 Ford Explorer BLK (KS27370)</option><option>2025 Ford Explorer BLK (KS27371)</option></select></div><div><label>Transport vehicle</label><select id="transportVehicle"><option value="">Select</option><option>2024 Ford Expedition BLK (KS27369)</option><option>2024 Cadillac Escalade WHT (2796MR)</option></select></div>':'';show('setup')}
+$('cancelStart').onclick=guardHome;
+$('startForm').onsubmit=async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;try{status('Creating patrol…');const r=await api('/rest/v1/rpc/start_patrol',{method:'POST',body:{p_guard_name:$('guard').value.trim(),p_supervisor:$('supervisor').value,p_patrol_type:activeDef.id,p_shift_date:$('shiftDate').value,p_shift_name:$('shift').value}});const item=r?.[0];if(!item?.patrol_access_code)throw Error('No patrol code returned');const code=item.patrol_access_code;saveCode(code,activeDef.title+' · '+$('shiftDate').value);await resume(code);const details={};if($('patrolVehicle')?.value)details.patrolVehicle=$('patrolVehicle').value;if($('transportVehicle')?.value)details.transportVehicle=$('transportVehicle').value;if(Object.keys(details).length){await api('/rest/v1/rpc/save_patrol_details',{method:'POST',body:{p_access_code:code,p_notes:'',p_details:details}});await resume(code)}}catch(err){alert('Patrol could not be started: '+err.message);status('Error starting patrol')}finally{btn.disabled=false}};
+$('resumeButton').onclick=()=>resume($('resumeCode').value.trim());
+async function resume(code){if(!/^[0-9a-f-]{36}$/i.test(code)){alert('Enter a valid patrol access code');return}try{status('Loading patrol…');const data=await api('/rest/v1/rpc/resume_patrol',{method:'POST',body:{p_access_code:code}});activeCode=code;activePatrol=data.patrol;activeChecks=data.checks||[];activeDef=definitions.find(d=>d.id===activePatrol.patrol_type);if(!activeDef)throw Error('Unknown patrol type');saveCode(code,activeDef.title+' · '+activePatrol.shift_date);$('patrolTitle').textContent=activeDef.title;$('patrolMeta').textContent=`Started by ${activePatrol.guard_name} · ${activePatrol.supervisor} · ${activePatrol.shift_date} · ${shiftLabel(activePatrol.shift_name)}`;$('notes').value=activePatrol.notes||'';$('meal').value=activePatrol.details?.meal||'';$('mobileParking').value=activePatrol.details?.mobileParking||'';$('mobilePersonals').value=activePatrol.details?.mobilePersonals||'';$('mobileMeals').value=activePatrol.details?.mobileMeals||'';$('mobileDriving').value=activePatrol.details?.mobileDriving||'';$('mobileDetails').classList.toggle('hidden',!activeDef.mobile);const finished=activePatrol.status!=='active';$('patrolStatus').textContent=finished?'FINISHED':'ACTIVE';$('patrolStatus').style.background=finished?'#e7edf5':'#e9f6ee';$('patrolStatus').style.color=finished?'#36475e':'#126136';for(const id of ['checkingGuard','meal','mobileParking','mobilePersonals','mobileMeals','mobileDriving','notes'])$(id).disabled=finished;$('saveDetails').disabled=finished;$('finish').disabled=finished;$('finish').textContent=finished?'Patrol Finished':'Finish This Patrol';renderChecks();show('patrol');status('Patrol loaded from Supabase')}catch(e){alert('Could not resume patrol: '+e.message);status('Patrol could not be loaded')}}
+function mobileSelect(key,field,value,locked){return `<select data-mobile-field="${field}" data-mobile-key="${key}" ${locked?'disabled':''}><option value="">Select</option><option value="Yes" ${value==='Yes'?'selected':''}>Yes</option><option value="No" ${value==='No'?'selected':''}>No</option></select>`}
+function renderMobileChecks(){
+  const finished=activePatrol?.status!=='active';const areas=activeDef.sections[0][1];
+  const done=areas.filter((_,i)=>activeChecks.some(c=>c.location_key===`0:${i}`&&c.round_number===1)).length;
+  $('progress').textContent=`${done} of ${areas.length} mobile areas recorded (one entry per area)`;
+  $('areas').innerHTML='<p class="muted">For each area, select Yes or No for both inspections, add any notes, then record the area. The guard and server time are saved.</p>'+areas.map((area,i)=>{
+    const key=`0:${i}`;const check=activeChecks.find(c=>c.location_key===key&&c.round_number===1);
+    const data=activePatrol.details?.mobileAreas?.[key]||{};const locked=finished||!!check;
+    return `<div class="area"><strong>${esc(area)}</strong><div class="split"><div><label>Gate locks checked</label>${mobileSelect(key,'gateLocks',data.gateLocks,locked)}</div><div><label>Perimeter doors checked</label>${mobileSelect(key,'perimeterDoors',data.perimeterDoors,locked)}</div></div><label>Area notes</label><textarea rows="2" data-mobile-note="${key}" ${locked?'disabled':''}>${esc(data.notes||'')}</textarea><div class="row" style="margin-top:8px"><span class="muted">${check?`Recorded by ${esc(check.checked_by_guard||'')} · ${esc(nyDateTime(check.checked_at))}`:''}</span><button class="smallbtn ${locked?'saved':''}" data-mobile-save="${key}" ${locked?'disabled':''}>${check?'✓ Recorded':finished?'Not recorded':'Record Area'}</button></div></div>`;
+  }).join('');
+  document.querySelectorAll('[data-mobile-save]:not([disabled])').forEach(b=>b.onclick=()=>recordMobileArea(b));
+}
+async function recordMobileArea(button){
+  if(activePatrol?.status!=='active')return alert('This patrol is finished.');
+  const key=button.dataset.mobileSave;const area=activeDef.sections[0][1][Number(key.split(':')[1])];
+  const gateLocks=document.querySelector(`[data-mobile-field="gateLocks"][data-mobile-key="${key}"]`).value;
+  const perimeterDoors=document.querySelector(`[data-mobile-field="perimeterDoors"][data-mobile-key="${key}"]`).value;
+  const notes=document.querySelector(`[data-mobile-note="${key}"]`).value;
+  const name=$('checkingGuard').value.trim();
+  if(!name)return alert('Enter the guard’s full name at the top.');
+  if(!gateLocks||!perimeterDoors)return alert('Select Yes or No for both inspections.');
+  if(!confirm(`Record ${area} for ${name}? This entry cannot be edited after it is recorded.`))return;
+  button.disabled=true;
+  try{
+    // Existing Supabase details JSON holds the two Yes/No results and notes.
+    const details={...(activePatrol.details||{}),mobileAreas:{...(activePatrol.details?.mobileAreas||{}),[key]:{gateLocks,perimeterDoors,notes}}};
+    await api('/rest/v1/rpc/save_patrol_details',{method:'POST',body:{p_access_code:activeCode,p_notes:$('notes').value,p_details:details}});
+    await api('/rest/v1/rpc/record_patrol_check',{method:'POST',body:{p_access_code:activeCode,p_location_key:key,p_location_name:area,p_round_number:1,p_guard_name:name}});
+    await resume(activeCode);
+  }catch(e){alert('Area was not fully recorded: '+e.message+'. Check the patrol before retrying.');button.disabled=false}
+}
+function renderChecks(){if(activeDef.mobile){renderMobileChecks();return;}
+const finished=activePatrol?.status!=='active';const count=activeDef.sections.reduce((n,s)=>n+s[1].length,0)*4;$('progress').textContent=`${activeChecks.length} of ${count} checks recorded`;
+$('areas').innerHTML=activeDef.sections.map(([section,areas],si)=>`<div class="section"><h3>${esc(section)}</h3>${areas.map((area,i)=>{const key=`${si}:${i}`;const comment=activePatrol.details?.areaComments?.[key]||'';return `<div class="area"><strong>${esc(area)}</strong><div class="check-grid">${[1,2,3,4].map(round=>{const c=activeChecks.find(x=>x.location_key===key&&x.round_number===round);return `<button ${c||finished?'disabled':''} class="${c?'saved':finished?'later':'next'}" data-check="${key}" data-round="${round}" data-area="${esc(area)}">${c?'✓ '+esc(new Date(c.checked_at).toLocaleTimeString()):finished?'Not completed':'Check '+round}</button>`}).join('')}</div><div class="area-comment"><label for="comment-${si}-${i}">Comments (this location)</label><textarea id="comment-${si}-${i}" data-comment="${key}" placeholder="Optional location comments" ${finished?'disabled':''}>${esc(comment)}</textarea>${finished?'':`<button class="secondary smallbtn" data-save-comment="${key}">Save Comment</button>`}</div></div>`}).join('')}</div>`).join('');
+document.querySelectorAll('[data-check]:not([disabled])').forEach(b=>b.onclick=()=>recordCheck(b));
+document.querySelectorAll('[data-save-comment]').forEach(b=>b.onclick=()=>saveAreaComment(b));
+}
+async function recordCheck(b){if(activePatrol?.status!=='active')return alert('This patrol is finished and cannot be changed.');const name=$('checkingGuard').value.trim();if(!name)return alert('Enter the full name of the guard completing this check.');b.disabled=true;try{await api('/rest/v1/rpc/record_patrol_check',{method:'POST',body:{p_access_code:activeCode,p_location_key:b.dataset.check,p_location_name:b.dataset.area,p_round_number:Number(b.dataset.round),p_guard_name:name}});await resume(activeCode)}catch(e){alert('Check NOT saved: '+e.message);b.disabled=false}}
+async function saveAreaComment(b){if(activePatrol?.status!=='active')return alert('This patrol is finished and cannot be changed.');const key=b.dataset.saveComment;const field=[...document.querySelectorAll('[data-comment]')].find(x=>x.dataset.comment===key);if(!field)return;const comment=field.value.trim();b.disabled=true;try{const details={...(activePatrol.details||{}),areaComments:{...(activePatrol.details?.areaComments||{}),[key]:comment}};await api('/rest/v1/rpc/save_patrol_details',{method:'POST',body:{p_access_code:activeCode,p_notes:activePatrol.notes||'',p_details:details}});activePatrol.details=details;b.textContent='Saved ✓';setTimeout(()=>{if(b.isConnected)b.textContent='Save Comment'},1800)}catch(e){alert('Comment NOT saved: '+e.message)}finally{b.disabled=false}}
+$('saveDetails').onclick=async()=>{if(activePatrol?.status!=='active')return alert('This patrol is finished and cannot be changed.');try{const details={...(activePatrol.details||{}),meal:$('meal').value,mobileParking:$('mobileParking').value,mobilePersonals:$('mobilePersonals').value,mobileMeals:$('mobileMeals').value,mobileDriving:$('mobileDriving').value};await api('/rest/v1/rpc/save_patrol_details',{method:'POST',body:{p_access_code:activeCode,p_notes:$('notes').value,p_details:details}});activePatrol.details=details;activePatrol.notes=$('notes').value;alert('Notes saved to Supabase')}catch(e){alert('Notes NOT saved: '+e.message)}};
+$('finish').onclick=async()=>{if(activePatrol?.status!=='active')return alert('This patrol is already finished.');const name=$('checkingGuard').value.trim();if(!name)return alert('Enter the full name of the guard finishing this patrol.');if(!confirm('Finish this patrol? No further checks or notes can be added.'))return;try{await api('/rest/v1/rpc/finish_patrol',{method:'POST',body:{p_access_code:activeCode,p_guard_name:name}});removeCode(activeCode);await guardHome();status('Patrol finished and saved in Supabase')}catch(e){alert('Could not finish: '+e.message)}};
+$('copyCode').onclick=async()=>{try{await navigator.clipboard.writeText(activeCode);alert('Patrol access code copied')}catch{prompt('Copy the patrol access code:',activeCode)}};
+$('backHome').onclick=guardHome;
+$('endShift').onclick = () => {
+  if (!confirm('End your shift? Your saved patrol records will remain in Supabase.')) return;
+
+  activeCode = null;
+  activePatrol = null;
+  activeChecks = [];
+  activeDef = null;
+
+  $('checkingGuard').value = '';
+  $('guard').value = '';
+  $('resumeCode').value = '';
+
+  signOut();
+  status('Shift ended. Return the iPad to the Security office.');
+};
+function filteredManagementRows(){return managementRows.filter(p=>(!$('filterDate').value||p.shift_date===$('filterDate').value)&&(!$('filterType').value||p.patrol_type===$('filterType').value)&&(!$('filterStatus').value||p.status===$('filterStatus').value)&&(!$('filterShift').value||shiftLabel(p.shift_name)===$('filterShift').value)&&(!$('filterGuard').value||[p.guard_name,...p.checks.map(c=>c.checked_by_guard)].some(n=>String(n||'').trim().toLowerCase()===$('filterGuard').value.toLowerCase()))&&(!$('filterSupervisor').value||String(p.supervisor||'').trim().toLowerCase()===$('filterSupervisor').value.toLowerCase()))}
+function expectedCheckCount(p){const def=definitions.find(d=>d.id===p.patrol_type);return def?def.sections.reduce((sum,section)=>sum+section[1].length,0)*(def.mobile?1:4):0}
+function completionInfo(p){const total=expectedCheckCount(p);const done=p.checks.length;return {done,total,pct:total?Math.min(100,done/total*100):0}}
+function mobileReportRows(p){
+  const def=definitions.find(d=>d.id==='mobile');
+  return def.sections[0][1].map((area,i)=>{
+    const key=`0:${i}`;
+    const check=p.checks.find(c=>c.location_key===key&&c.round_number===1)||null;
+    const answers=p.details?.mobileAreas?.[key]||{};
+    return {area,key,check,answers};
+  });
+}
+function renderManagement(){
+  const visible=filteredManagementRows();
+  const count=visible.reduce((n,p)=>n+p.checks.length,0);
+  $('managementCount').textContent=`Showing ${visible.length} of ${managementRows.length} loaded patrol(s) · ${count} check(s) in the selected view. Data limited to the latest 1,000 patrols and 10,000 checks per refresh; completion figures may be incomplete if this limit is reached.`;
+  $('managementRecords').innerHTML=visible.length?visible.map((p,i)=>{
+    const info=completionInfo(p);
+    const isMobile=p.patrol_type==='mobile';
+    const rows=isMobile?mobileReportRows(p).map(({area,check,answers})=>`<tr><td>${esc(area)}</td><td>${check?'<span class="pill">Recorded</span>':'<strong>Not Recorded</strong>'}</td><td>${check?esc(answers.gateLocks||'—'):'—'}</td><td>${check?esc(answers.perimeterDoors||'—'):'—'}</td><td>${check?esc(check.checked_by_guard||'—'):'—'}</td><td>${check?esc(nyDateTime(check.checked_at)):'—'}</td><td>${check?esc(answers.notes||''):'—'}</td></tr>`).join('')
+      :p.checks.map(c=>`<tr><td>${esc(c.location_name)}</td><td>${c.round_number}</td><td>${esc(c.checked_by_guard||'')}</td><td>${esc(nyDateTime(c.checked_at))}</td><td>${esc(p.details?.areaComments?.[c.location_key]||'—')}</td></tr>`).join('');
+    const headers=isMobile?'<th>Area</th><th>Status</th><th>Gate Locks</th><th>Perimeter Doors</th><th>Guard</th><th>Recorded At</th><th>Area Notes</th>':'<th>Location</th><th>Round</th><th>Guard</th><th>Timestamp</th><th>Comments</th>';
+    const extra=isMobile?`<div class="area"><h3>Patrol Information</h3><p class="muted">Patrol vehicle: ${esc(p.details?.patrolVehicle||'—')} · Transport vehicle: ${esc(p.details?.transportVehicle||'—')}</p></div>`:'';
+    const additional=isMobile?`<div class="area"><h3>Additional Mobile Patrol Information</h3><p><strong>Special event parking:</strong> ${esc(p.details?.mobileParking||'—')}</p><p><strong>Personals / time:</strong> ${esc(p.details?.mobilePersonals||'—')}</p><p><strong>Meal breaks / time:</strong> ${esc(p.details?.mobileMeals||'—')}</p><p><strong>Driving jobs / times:</strong> ${esc(p.details?.mobileDriving||'—')}</p><p><strong>Additional notes:</strong> ${esc(p.notes||'—')}</p></div>`:`<p>${esc(p.notes||'')}</p>`;
+    return `<div class="record"><div class="row"><label style="display:flex;align-items:center;gap:6px;width:auto;margin-right:10px"><input type="checkbox" data-select-patrol="${esc(p.id)}" ${selectedPatrolIds.has(p.id)?'checked':''} aria-label="Select patrol for deletion" style="width:auto"> Select</label><div><strong>${esc(definitions.find(d=>d.id===p.patrol_type)?.title||p.patrol_type)}</strong><div class="muted">${esc(p.shift_date)} · ${esc(shiftLabel(p.shift_name))} · ${esc(p.guard_name)} · ${esc(p.status)} · ${p.checks.length} checks</div><div class="muted" style="margin-top:5px"><strong>${info.done} of ${info.total||'?'} ${isMobile?'areas':'checks'} · ${info.total?info.pct.toFixed(1)+'%':'Unknown'} complete</strong></div><div role="progressbar" aria-label="Patrol completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${info.pct.toFixed(1)}" style="height:9px;border-radius:9px;background:#e7edf5;overflow:hidden;margin-top:6px"><div style="height:100%;background:#18764a;width:${info.pct.toFixed(1)}%"></div></div></div><button class="secondary smallbtn" data-expand="${i}">Details</button></div><div class="hidden" id="record-${i}"><p class="muted">Supervisor: ${esc(p.supervisor)} · Finished by: ${esc(p.finished_by_guard||'—')}</p>${extra}<h3>${isMobile?'All 12 Areas Patrolled':'Recorded Checks'}</h3><div class="tablewrap"><table><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table></div>${additional}</div></div>`;
+  }).join(''):'<p class="muted">No patrols match these filters. Try clearing one or more filters.</p>';
+  document.querySelectorAll('[data-expand]').forEach(b=>b.onclick=()=>{$('record-'+b.dataset.expand).classList.toggle('hidden')});
+  document.querySelectorAll('[data-select-patrol]').forEach(b=>b.onchange=()=>{if(b.checked)selectedPatrolIds.add(b.dataset.selectPatrol);else selectedPatrolIds.delete(b.dataset.selectPatrol);updateSelectionCount()});
+  updateSelectionCount();
+}
+async function loadManagement(){try{status('Loading management records…');const shifts=await api('/rest/v1/patrol_shifts?select=*&order=created_at.desc&limit=1000');const checks=await api('/rest/v1/patrol_checks?select=*&order=checked_at.asc&limit=10000');const byPatrol=new Map();for(const c of checks){if(!byPatrol.has(c.patrol_shift_id))byPatrol.set(c.patrol_shift_id,[]);byPatrol.get(c.patrol_shift_id).push(c)}managementRows=shifts.map(p=>({...p,checks:byPatrol.get(p.id)||[]}));const currentGuard=$('filterGuard').value;const guardNames=[...new Map(managementRows.flatMap(p=>[p.guard_name,...p.checks.map(c=>c.checked_by_guard)]).map(n=>String(n||'').trim()).filter(Boolean).map(n=>[n.toLocaleLowerCase(),n])).values()].sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'}));$('filterGuard').innerHTML='<option value="">All guards</option>'+guardNames.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');$('filterGuard').value=guardNames.some(n=>n.toLowerCase()===currentGuard.toLowerCase())?guardNames.find(n=>n.toLowerCase()===currentGuard.toLowerCase()):'';const currentShift=$('filterShift').value;const shiftsAvailable=[...new Set(shifts.map(p=>shiftLabel(p.shift_name)).filter(Boolean))].sort();$('filterShift').innerHTML='<option value="">All shifts</option>'+shiftsAvailable.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');$('filterShift').value=shiftsAvailable.includes(currentShift)?currentShift:'';renderManagement();status('Management records loaded')}catch(e){status('Management records could not load');alert(e.message)}}
+function updateSelectionCount(){$('selectionCount').textContent=`${selectedPatrolIds.size} patrol(s) selected. Only select records you have verified are tests. Deletion is permanent.`;}
+$('selectVisible').onclick=()=>{filteredManagementRows().forEach(p=>selectedPatrolIds.add(p.id));renderManagement()};
+$('clearSelection').onclick=()=>{selectedPatrolIds.clear();renderManagement()};
+$('deleteSelected').onclick=async()=>{
+ if(role!=='management')return alert('Management access required.');
+ const ids=[...selectedPatrolIds].filter(id=>managementRows.some(p=>p.id===id));
+ if(!ids.length)return alert('Select the test patrols you want to delete first.');
+ if(!confirm(`PERMANENTLY delete ${ids.length} selected patrol(s), including their checks and notes? This cannot be undone. Only continue if every selected patrol is a test.`))return;
+ const typed=prompt(`To confirm permanent deletion of ${ids.length} patrol(s), type DELETE exactly:`);
+ if(typed!=='DELETE')return alert('Deletion cancelled.');
+ try{
+  const result=await api('/rest/v1/rpc/delete_selected_patrols',{method:'POST',body:{p_patrol_ids:ids}});
+  selectedPatrolIds.clear();await loadManagement();
+  alert(`Deleted ${result} patrol(s).`);
+ }catch(e){alert('Deletion failed; no patrols should have been deleted: '+e.message)}
+};
+$('refreshRecords').onclick=loadManagement;
+['filterDate','filterType','filterStatus','filterShift','filterGuard','filterSupervisor'].forEach(id=>$(id).addEventListener('change',renderManagement));
+$('clearFilters').onclick=()=>{$('filterDate').value='';$('filterType').value='';$('filterStatus').value='';$('filterShift').value='';$('filterGuard').value='';$('filterSupervisor').value='';renderManagement()};
+function nyDateTime(v){if(!v)return '';const d=new Date(v);return Number.isNaN(d.getTime())?'':new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',month:'2-digit',day:'2-digit',year:'numeric',hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true}).format(d)}
+function nyTime(v){if(!v)return '';const d=new Date(v);return Number.isNaN(d.getTime())?'':new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true}).format(d)}
+function csvCell(v){return '"'+String(v??'').replace(/^[=+@\-\t\r]/,"'$&").replace(/"/g,'""')+'"'}
+$('exportAll').onclick=()=>{
+  if(role!=='management')return;
+  const rows=[['Patrol ID','Patrol','Shift Date','Shift','Started By','Supervisor','Status','Checks Completed','Checks Required','Completion %','Location','Round','Checked By Guard','Checked At (New York Time)','Notes','Details','Finished At','Finished By','Mobile Area Status','Mobile Gate Locks Checked','Mobile Perimeter Doors Checked','Mobile Area Notes','Special Event Parking','Personals / Time','Meal Breaks / Time','Driving Jobs / Times','Location Comments']];
+  for(const p of filteredManagementRows()){
+    const title=definitions.find(d=>d.id===p.patrol_type)?.title||p.patrol_type;
+    const entries=p.patrol_type==='mobile'?mobileReportRows(p).map(({area,check,answers})=>({area,check,answers})):p.checks.length?p.checks.map(check=>({area:check.location_name,check,answers:{}})):[{area:'',check:null,answers:{}}];
+    const info=completionInfo(p);
+    for(const {area,check,answers} of entries){
+      rows.push([p.id,title,p.shift_date,shiftLabel(p.shift_name),p.guard_name,p.supervisor,p.status,info.done,info.total||'',info.total?info.pct.toFixed(1)+'%':'',area,check?.round_number||'',check?.checked_by_guard||'',nyTime(check?.checked_at),p.notes||'',JSON.stringify(p.details||{}),nyDateTime(p.finished_at),p.finished_by_guard||'',p.patrol_type==='mobile'?(check?'Recorded':'Not Recorded'):'',p.patrol_type==='mobile'&&check?answers.gateLocks||'':'',p.patrol_type==='mobile'&&check?answers.perimeterDoors||'':'',p.patrol_type==='mobile'&&check?answers.notes||'':'',p.details?.mobileParking||'',p.details?.mobilePersonals||'',p.details?.mobileMeals||'',p.details?.mobileDriving||'',p.patrol_type==='mobile'?'':p.details?.areaComments?.[check?.location_key]||'']);
+    }
+  }
+  if(rows.length===1)return alert('No patrols match the current filters');
+  const blob=new Blob(['\uFEFF'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='CitiField_Patrol_Management.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);
+};
+async function init(){try{loadCachedGuardRoster();if(typeof SUPABASE_URL==='undefined'||typeof SUPABASE_PUBLISHABLE_KEY==='undefined')throw Error('supabase-config.js is missing');$('supervisor').innerHTML='<option value="">Select supervisor</option>'+supervisors.map(n=>`<option>${esc(n)}</option>`).join('');try{session=JSON.parse(localStorage.getItem(KEY)||'null')}catch{}if(session){await enterDashboard()}else{show('login');status('Connected test version · Sign in required')}}catch(e){show('login');status('Setup issue: '+e.message)}}init();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js')
+      .then(() => console.log('Offline app service worker registered'))
+      .catch(error => console.error('Service worker error:', error));
+  });
+}
+</script></body></html>
