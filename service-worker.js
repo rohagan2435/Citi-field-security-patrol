@@ -1,8 +1,9 @@
-const CACHE_NAME = 'citi-security-patrol-v1';
+const CACHE_NAME = 'citi-security-patrol-v2';
 
 const APP_FILES = [
   './index-qr-offline-test.html',
   './supabase-config.js',
+  './offline-storage.js',
   './manifest.json'
 ];
 
@@ -14,7 +15,21 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    Promise.all([
+      self.clients.claim(),
+      caches.keys().then(keys =>
+        Promise.all(
+          keys
+            .filter(key =>
+              key.startsWith('citi-security-patrol-') &&
+              key !== CACHE_NAME
+            )
+            .map(key => caches.delete(key))
+        )
+      )
+    ])
+  );
 });
 
 self.addEventListener('fetch', event => {
