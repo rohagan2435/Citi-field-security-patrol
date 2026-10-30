@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Citi Field Security - Offline Patrol Pilot</title>
+<style>
+  :root { font-family: Arial, sans-serif; color: #10243b; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #f2f5f9; }
+  header { background: #002d72; color: white; padding: 20px; }
+  main { max-width: 900px; margin: auto; padding: 16px; }
+  .card { background: white; border-radius: 10px; padding: 18px; margin-bottom: 14px; border: 1px solid #d8e0e9; }
+  h1 { margin: 0 0 8px; font-size: 24px; }
+  h2 { margin-top: 0; font-size: 20px; }
+  label { display: block; margin: 12px 0 5px; font-weight: bold; }
+  input, select, textarea, button { font: inherit; }
+  input, select, textarea { width: 100%; padding: 12px; border: 1px solid #aebaca; border-radius: 6px; }
+  textarea { min-height: 70px; }
+  button { padding: 12px; background: #002d72; color: white; border: none; border-radius: 6px; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  .secondary { background: #e7edf5; color: #002d72; }
+  .danger { background: #9b2630; }
+  .buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .rounds { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 7px; }
+  .rounds button { font-size: 13px; padding: 10px 3px; }
+  .saved { background: #dcefe2; color: #176237; }
+  .muted { color: #526276; font-size: 13px; }
+  .status { font-weight: bold; }
+  .location { border-top: 1px solid #d8e0e9; padding: 16px 0; }
+  .location h3 { margin: 0 0 8px; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Citi Field Security Patrol</h1>
+  <div>Offline Development Pilot</div>
+</header>
+<main>
+  <div class="card">
+    <div id="connection" class="status"></div>
+    <p class="muted">Test version only. Records remain on this device and do not appear in Management.</p>
+  </div>
+
+  <section id="home">
+    <div class="card">
+      <h2>Start New Patrol</h2>
+      <label for="supervisor">Supervisor</label>
+      <select id="supervisor"></select>
+      <label for="guard">Guard Name</label>
+      <select id="guard"></select>
+      <label for="shift">Shift</label>
+      <select id="shift">
+        <option>12am-8am</option>
+        <option>8am-4pm</option>
+        <option>4pm-12am</option>
+      </select>
+      <label for="patrolType">Patrol Log</label>
+      <select id="patrolType">
+        <option value="tunnel">Tunnel and Perimeter</option>
+        <option value="mobile">Mobile Patrol Log</option>
+        <option value="promenade">Promenade and Excelsior Empire Level</option>
+        <option value="field">Field Level and Suites Patrol Log</option>
+      </select>
+      <div class="buttons">
+        <button onclick="startPatrol()">Start Patrol</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Saved Patrols on This iPad</h2>
+      <div id="savedPatrols"></div>
+    </div>
+  </section>
+
+  <section id="patrolScreen" class="hidden">
+    <div class="card">
+      <h2 id="patrolTitle"></h2>
+      <div id="patrolInfo"></div>
+      <label for="checkingGuard">Guard Completing Check</label>
+      <select id="checkingGuard"></select>
+      <div class="buttons">
+        <button class="secondary" onclick="showHome()">Back to Patrols</button>
+        <button class="danger" onclick="finishPatrol()">Finish Patrol</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Patrol Locations</h2>
+      <div id="locations"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+"use strict";
+
+const STORE = "citi_field_offline_pilot_v2";
+const ROSTER_STORE = "citi_field_offline_pilot_roster_v2";
+
+const supervisors = [
+  "John Bonner", "Luis Cruz", "Mohamed Elhanafi",
+  "Gustavo Este", "John Mendez", "John Markoulis",
+  "MariAnn Catalanotto", "Jason Garcia", "Robert Fitzpatrick"
+];
+
+const fallbackGuards = [
+  "Alonso, Nicasio F", "Arena, Mark", "Blake, Kenneth",
+  "Bourdon, Juan", "Cadena, Alexander", "Cadet, Randall",
+  "Cardenas, Florami", "Castiglie, John", "Castiglie, Peter",
+  "Chiella, Matthew", "Crooms, Jadon", "Diaz, Angelica",
+  "DiBenedetto, Frank", "DiBenedetto, RosaLee",
+  "Fanfair, Lawrence", "Fattorusso Jr., Joseph",
+  "Fisherman, Jeffrey", "Gentile, John", "Green, Nefertiti",
+  "Hunt, Denzel", "Incatasciato, William", "Ingram, Gregory",
+  "Joseph, Jennifer", "King, Arthur", "McGibney, George",
+  "Messina, Joseph", "Murray, Brian", "Nigoghossian, George",
+  "Ortiz-Diaz, Ricardo"
+];
+
+const definitions=[
+{id:'tunnel',title:'Tunnel & Perimeter',sections:[['Perimeter Gates and Doors',['LF Gate','Stengel','Seaver','Rotunda','Team Store','Hodges','Shea Door','Players Lobby','RF Gate','Ebbs Doors','Expo Center','Speak Easy Drs.','BP Gate','Admin Bldg.','K Corner','K Corner Gate','N/E Gate','Side Exits (all)']],['Tunnel Doors',['Event Staff','Visitors CH','Aux. Locker','Visitors CH Back','Retail Storage 1','Ticket Office','Lost & Found','HOF/Team Store','Diamond Club','Owner Suite','Retail Storage 2','Press Conf. Rm.','Sprint Track','Mets CH Back','Mets CH Front','Ballpark Ops','Citifield Shops','BCC Gate','Main Commissary']]],meal:true},
+{id:'mobile',title:'Mobile Patrol',sections:[['Areas Patrolled',['Lot A','Lot B','Lot C','Lot D','Lot E','Lot F','Lot G','South Field','Perimeter Gates','Perimeter Drs.','Back of House','Fire Lane']]],mobile:true},
+{id:'promenade',title:'Promenade · Excelsior · Empire',sections:[['Promenade Level',['Sec. 402–409 Concession','Prom. Level IDF/PDR Rms. Hodges/Seaver Stairs','Sec. 409/412 IDF/PDR Rms','1st Aid Rm. Opp. 417','Hudson Whiskey Club NY','Behind Hudson Whiskey Club Concession Stands','Mets Team Store Behind Prom. Hudson Whisky','Sec. 420–425 Concessions','Sec. 430/433/436 Concession','Sec. 431/436 IDF/PDR Rms','Mets Dugout Opp. Sec. 431','Piazza Club on the Promenade Excelsior Empire Level']],['Excelsior Level',['Coke Corner Concessions','Roof Gate at Coke Corner','Mets Dugout Exc. RF Elev.','Sec. 309/329/338 IDF/PDR','Opp. 312–310 Concession','Mets Dugout Opp. Sec. 327','Opp. 327–326 Concession','Piazza Club / Concessions','Prep Room Behind Bar','Storage Rm. Inside Prep. Rm.','Writing Press 1 & 2 Opp. Exc. Hodges Stairs','Media Lounge Inside Plaza','Excel. Level Hodges/Seaver Stairs IDF/PDR Rms','1st Aid Opposite Sec. 329','Caesar’s Sports Book','Concession Stands LF Landing']]],meal:true},
+{id:'field',title:'Field Level & Suites',sections:[['Concession Stands',['Sec. 101–105','Sec. 110–114','Sec. 121–125','Sec. 135–137','Beer Garden']],['IDF/PDR Rms',['Sec. 103','Sec. 110','Sec. 125','Seaver Stairs','Hodges Stairs','Beer Garden','Sec. 132','Sec. 138']],['Stores',['Dug Out Sec. 106/131/141','47 Sec. 106','Team Store Hodges Stairs']],['Other Locations / Empire Suites Level',['1st Aid / Ticket','Hyundai / Owners Suite','Fan Asst. Sec. 142','Empire Lounge','Empire Auditorium','Empire Suites Doors']]],meal:true}
+];
+const locationsByType = Object.fromEntries(definitions.map(def => [def.id, def.sections.flatMap(([section, areas]) => areas.map((name, index) => ({ key: section + "::" + index, name, section })))]));
+
+let patrols = readJSON(STORE, []);
+let guards = readJSON(ROSTER_STORE, fallbackGuards);
+let activeId = null;
+
+function readJSON(key, fallback) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key));
+    return Array.isArray(value) ? value : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function save() {
+  try { localStorage.setItem(STORE, JSON.stringify(patrols)); return true; }
+  catch (error) { alert("Storage failed. Do not close this page; contact a supervisor."); console.error(error); return false; }
+}
+
+function el(id) {
+  return document.getElementById(id);
+}
+
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;",
+    '"': "&quot;", "'": "&#39;"
+  })[char]);
+}
+
+function fillSelect(select, names, placeholder) {
+  select.innerHTML =
+    '<option value="">' + escapeHTML(placeholder) + '</option>' +
+    names.map(name => '<option value="' + escapeHTML(name) +
+      '">' + escapeHTML(name) + '</option>').join("");
+}
+
+function updateConnection() {
+  el("connection").textContent = navigator.onLine
+    ? "Device reports online - patrol records are still stored locally"
+    : "Offline - patrol records are stored on this device";
+}
+
+window.addEventListener("online", updateConnection);
+window.addEventListener("offline", updateConnection);
+
+function renderHome() {
+  const container = el("savedPatrols");
+  if (!patrols.length) {
+    container.textContent = "No locally saved patrols yet.";
+    return;
+  }
+  container.innerHTML = "";
+  for (const patrol of [...patrols].reverse()) {
+    const div = document.createElement("div");
+    div.className = "location";
+    const title = document.createElement("div");
+    title.textContent = (definitions.find(d => d.id === patrol.type)?.title || patrol.type) + " | " +
+      patrol.shift + " | " + patrol.guard +
+      (patrol.finished ? " | Finished" : " | Active");
+    div.appendChild(title);
+    const button = document.createElement("button");
+    button.className = "secondary";
+    button.textContent = "Open Patrol";
+    button.onclick = () => openPatrol(patrol.id);
+    div.appendChild(button);
+    container.appendChild(div);
+  }
+}
+
+function showHome() {
+  activeId = null;
+  el("patrolScreen").classList.add("hidden");
+  el("home").classList.remove("hidden");
+  renderHome();
+}
+
+function startPatrol() {
+  const supervisor = el("supervisor").value;
+  const guard = el("guard").value;
+  if (!supervisor || !guard) {
+    alert("Select a supervisor and guard.");
+    return;
+  }
+  const patrol = {
+    id: crypto.randomUUID(),
+    supervisor,
+    guard,
+    shift: el("shift").value,
+    type: el("patrolType").value,
+    started: new Date().toISOString(),
+    finished: false,
+    locations: {}
+  };
+  patrols.push(patrol);
+  save();
+  openPatrol(patrol.id);
+}
+
+function currentPatrol() {
+  return patrols.find(p => p.id === activeId);
+}
+
+function openPatrol(id) {
+  activeId = id;
+  const patrol = currentPatrol();
+  if (!patrol) return showHome();
+  el("home").classList.add("hidden");
+  el("patrolScreen").classList.remove("hidden");
+  el("patrolTitle").textContent = definitions.find(d => d.id === patrol.type)?.title || patrol.type;
+  el("patrolInfo").textContent =
+    patrol.shift + " | " + patrol.supervisor +
+    " | Started " + new Date(patrol.started).toLocaleString() +
+    (patrol.finished ? " | Finished" : "");
+  fillSelect(el("checkingGuard"), guards, "Select guard completing check");
+  el("checkingGuard").value = patrol.guard;
+  el("checkingGuard").disabled = patrol.finished;
+  renderLocations();
+}
+
+function locationData(patrol, name) {
+  if (!patrol.locations[name]) {
+    patrol.locations[name] = {checks: {}, comment: ""};
+  }
+  return patrol.locations[name];
+}
+
+function renderLocations() {
+  const patrol = currentPatrol();
+  if (!patrol) return;
+  const container = el("locations");
+  container.innerHTML = "";
+  let previousSection = "";
+  for (const item of (locationsByType[patrol.type] || [])) {
+    const {key, name, section} = item;
+    if (section !== previousSection) {
+      const sectionTitle = document.createElement("h2");
+      sectionTitle.textContent = section;
+      container.appendChild(sectionTitle);
+      previousSection = section;
+    }
+    const data = locationData(patrol, key);
+    const div = document.createElement("div");
+    div.className = "location";
+    const heading = document.createElement("h3");
+    heading.textContent = name;
+    div.appendChild(heading);
+
+    const rounds = document.createElement("div");
+    rounds.className = "rounds";
+    const count = patrol.type === "mobile" ? 1 : 4;
+    for (let n = 1; n <= count; n++) {
+      const record = data.checks[n];
+      const button = document.createElement("button");
+      if (record) {
+        button.className = "saved";
+        button.textContent = "Check " + n + " ✓";
+        button.disabled = true;
+        const details = document.createElement("p");
+        details.className = "muted";
+        details.textContent = "Check " + n + ": " +
+          new Date(record.time).toLocaleString() +
+          " - " + record.guard;
+        div.appendChild(details);
+      } else {
+        button.textContent = "Check " + n;
+        button.disabled = patrol.finished;
+        button.onclick = () => recordCheck(key, n);
+      }
+      rounds.appendChild(button);
+    }
+    div.appendChild(rounds);
+
+    const label = document.createElement("label");
+    label.textContent = "Comments";
+    div.appendChild(label);
+
+    const textarea = document.createElement("textarea");
+    textarea.value = data.comment || "";
+    textarea.placeholder = "Enter comments for this location";
+    textarea.disabled = patrol.finished;
+    div.appendChild(textarea);
+
+    const saveButton = document.createElement("button");
+    saveButton.className = "secondary";
+    saveButton.textContent = "Save Comment";
+    saveButton.disabled = patrol.finished;
+    saveButton.onclick = () => {
+      data.comment = textarea.value;
+      save();
+      alert("Comment saved on this device.");
+    };
+    div.appendChild(saveButton);
+    container.appendChild(div);
+  }
+  save();
+}
+
+function recordCheck(name, round) {
+  const patrol = currentPatrol();
+  if (!patrol || patrol.finished) return;
+  const guard = el("checkingGuard").value;
+  if (!guard) {
+    alert("Select the guard completing this check.");
+    return;
+  }
+  const data = locationData(patrol, name);
+  if (data.checks[round]) return;
+  data.checks[round] = {
+    id: crypto.randomUUID(),
+    guard,
+    time: new Date().toISOString()
+  };
+  if (!save()) { delete data.checks[round]; return; }
+  renderLocations();
+}
+
+function finishPatrol() {
+  const patrol = currentPatrol();
+  if (!patrol || patrol.finished) return;
+  if (!confirm("Finish this patrol? Saved checks will remain on this device.")) return;
+  patrol.finished = true;
+  patrol.finishedAt = new Date().toISOString();
+  save();
+  showHome();
+}
+
+function init() {
+  fillSelect(el("supervisor"), supervisors, "Select supervisor");
+  fillSelect(el("guard"), guards, "Select guard");
+  updateConnection();
+  renderHome();
+}
+init();
+</script>
+</body>
+</html>
