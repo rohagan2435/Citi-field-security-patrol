@@ -5,6 +5,42 @@
 </select><label for="supervisor">Supervisor</label><select id="supervisor" required></select><label for="shift">Shift</label><select id="shift" required><option value="00-08">12:00 AM – 8:00 AM</option><option value="08-16">8:00 AM – 4:00 PM</option><option value="16-00">4:00 PM – 12:00 AM</option></select><label for="shiftDate">Shift start date</label><input type="date" id="shiftDate" required><div class="split" id="vehicleFields"></div><div class="nav" style="margin-top:15px"><button type="submit">Start & Save Patrol</button><button type="button" class="secondary" onclick="goHome()">Cancel</button></div></form></section><section id="patrol" class="hidden"><div class="card"><div class="row"><h2 id="patrolTitle"></h2><span class="pill" id="patrolBadge">IN PROGRESS</span></div><div id="patrolMeta" class="muted"></div><p class="summary" id="progress"></p><div class="nav"><button class="secondary" onclick="goHome()">Home / Save & Return</button><button class="secondary" onclick="exportCurrent()">Export This Log</button></div></div><div class="card"><h2>Area Checks</h2><p class="muted">Tap a numbered button only when physically at the location. Each tap immediately records the iPad's exact date and time and cannot be changed.</p><div id="areas"></div></div><div class="card"><h2>Additional Log Details</h2><div id="extra"></div><label for="notes">Additional notes</label><textarea id="notes" rows="4" placeholder="Observations, meal relief, or other details"></textarea><button class="secondary" id="saveNotes" style="margin-top:9px">Save Notes</button><p class="muted">Notes are editable; check timestamps are locked. All data is local to this device in this pilot.</p></div><div class="card"><div class="nav"><button class="secondary" onclick="goHome()">Save & Return Later</button><button class="danger" id="finish">Finish This Patrol</button></div><p class="muted">Finishing closes this shift's record. A new guard can then start a separate patrol.</p></div></section></main><script>
 'use strict';
 const supervisors=['John Bonner','Luis Cruz','Mohamed Elhanafi','Gustavo Este','John Mendez','John Markoulis','MariAnn Catalanotto','Jason Garcia','Robert Fitzpatrick'];
+
+async function loadGuards() {
+  const dropdown = document.getElementById('guard');
+  dropdown.innerHTML = '<option value="">Select guard</option>';
+
+  if (typeof SUPABASE_URL === 'undefined' ||
+      typeof SUPABASE_PUBLISHABLE_KEY === 'undefined') {
+    console.warn('Supabase configuration not loaded');
+    return;
+  }
+
+  const response = await fetch(
+    SUPABASE_URL + '/rest/v1/guards?select=full_name&active=eq.true&order=full_name.asc',
+    {
+      headers: {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: 'Bearer ' + accessToken
+      }
+    }
+  );
+
+  if (!response.ok) {
+    console.error('Could not load guards:', response.status);
+    return;
+  }
+
+  const guards = await response.json();
+
+  guards.forEach(guard => {
+    const option = document.createElement('option');
+    option.value = guard.full_name;
+    option.textContent = guard.full_name;
+    dropdown.appendChild(option);
+  });
+}
+  
 const definitions=[
 {id:'tunnel',title:'Tunnel & Perimeter',sections:[['Perimeter Gates and Doors',['LF Gate','Steeple','Seaver','Rotunda','Team Store','Hodges','Shea Door','Players Lobby','RF Gate','Ebbs Doors','Expo Center','Speak Easy Drs.','BP Gate','Admin Bldg.','K Corner','K Corner Gate','N/E Gate','Side Exits (all)']],['Tunnel Doors',['Event Staff','Visitors CH','Aux. Locker','Visitors CH Back','Retail Storage 1','Ticket Office','Lost & Found','HOF/Team Store','Diamond Club','Owner Suite','Retail Storage 2','Press Conf. Rm.','Sprint Track','Mets CH Back','Mets CH Front','Ballpark Ops','Citifield Shops','BCC Gate','Main Commissary']]],meal:true},
 {id:'mobile',title:'Mobile Patrol',sections:[['Areas Patrolled',['Lot A','Lot B','Lot C','Lot D','Lot E','Lot F','Lot G','South Field','Perimeter Gates','Perimeter Drs.','Back of House','Fire Lane']]],mobile:true},
