@@ -29,9 +29,35 @@ const fallbackGuards = [
   "Fisherman, Jeffrey", "Gentile, John", "Green, Nefertiti",
   "Hunt, Denzel", "Incatasciato, William", "Ingram, Gregory",
   "Joseph, Jennifer", "King, Arthur", "McGibney, George",
-  "Messina, Joseph", "Murray, Brian", "Nigoghossian, George",
-  "Ortiz-Diaz, Ricardo"
+  "Messina, Joseph", "Murray, Brian", "Nigoghossian, George"
 ];
+async function loadGuardRoster() {
+  let names = fallbackGuards;
+
+  try {
+    const cached = localStorage.getItem('cf_guard_roster');
+    if (cached) names = JSON.parse(cached);
+
+    if (navigator.onLine && session) {
+      const rows = await request(
+        'guards?select=full_name&active=eq.true&order=full_name.asc'
+      );
+
+      names = rows.map(g => g.full_name);
+
+      localStorage.setItem(
+        'cf_guard_roster',
+        JSON.stringify(names)
+      );
+    }
+  } catch (error) {
+    console.warn('Using backup guard roster', error);
+  }
+
+  for (const id of ['guard', 'checkingGuard', 'taskGuard']) {
+    fill(id, names);
+  }
+}
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const DB='CitiFieldV7Fresh',STORE='records',AUTH='cf_v7_auth';let db,patrols=[],tasks=[],activeId=null,session=null,role='guard',serverPatrols=[],busy=false;
 const cfg=()=>({url:typeof SUPABASE_URL!=='undefined'?SUPABASE_URL:'',key:typeof SUPABASE_PUBLISHABLE_KEY!=='undefined'?SUPABASE_PUBLISHABLE_KEY:''});
@@ -40,11 +66,49 @@ function dbOpen(){return new Promise((resolve,reject)=>{let r=indexedDB.open(DB,
 function dbAll(){return new Promise((resolve,reject)=>{let r=db.transaction(STORE).objectStore(STORE).getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
 function dbPut(key,value){return new Promise((resolve,reject)=>{let t=db.transaction(STORE,'readwrite');t.objectStore(STORE).put({key,value});t.oncomplete=resolve;t.onerror=()=>reject(t.error)})}
 async function persistPatrol(p){await dbPut('patrol:'+p.id,p)}async function persistTask(t){await dbPut('task:'+t.id,t)}
-function fill(id,names){$(id).innerHTML='<option value="">Select name</option>'+names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')}
+function fill(id, names) {
+  const dropdown = $(id);
+
+  dropdown.innerHTML =
+    '<option value="">Select name</option>' +
+    names.map(n =>
+      `<option value="${esc(n)}">${esc(n)}</option>`
+    ).join('');
+
+  if (id === 'guard' || id === 'checkingGuard') {
+    dropdown.add(new Option(
+      'Other – Enter Name', '__other__'
+    ));
+
+    dropdown.onchange = function () {
+      if (this.value !== '__other__') return;
+
+      const name = prompt(
+        'Enter your name (Last Name, First Name):'
+      )?.trim();
+
+      if (!name || !/^[^,]+,\s*[^,]+$/.test(name)) {
+        this.value = '';
+        return;
+      }
+
+      const existing = [...this.options].find(
+        o => o.value.toLowerCase() === name.toLowerCase()
+      );
+
+      if (existing) {
+        this.value = existing.value;
+      } else {
+        this.add(new Option(name, name), this.options.length - 1);
+        this.value = name;
+      }
+    };
+  }
+}
 function defOf(type){return definitions.find(d=>d.id===type)}function areas(type){return defOf(type).sections.flatMap(([section,items])=>items.map((name,i)=>({key:section+'::'+i,section,name})))}
 function updateStatus(){let pending=patrols.filter(p=>!p.synced).length+tasks.filter(t=>!t.synced).length;$('syncStatus').textContent=(navigator.onLine?'Online':'Offline')+' · '+pending+' pending';banner((navigator.onLine?'Connection detected. ':'Offline mode. ')+(pending?pending+' item(s) awaiting confirmed sync.':'All local records synced or none created.'))}
 async function request(path,options={}){let {url,key}=cfg();if(!url||!key)throw Error('Supabase config missing');let headers={'apikey':key,'Content-Type':'application/json',...options.headers};if(session?.access_token)headers.Authorization='Bearer '+session.access_token;let res=await fetch(url+'/rest/v1/'+path,{...options,headers});let txt=await res.text();if(!res.ok)throw Error('Supabase '+res.status+': '+txt.slice(0,240));return txt?JSON.parse(txt):null}
-async function login(email,password){let {url,key}=cfg();if(!url||!key)throw Error('Supabase configuration not loaded');let res=await fetch(url+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'apikey':key,'Content-Type':'application/json'},body:JSON.stringify({email,password})});let data=await res.json();if(!res.ok)throw Error(data.msg||data.error_description||data.error||'Sign in failed');session=data;localStorage.setItem(AUTH,JSON.stringify(data));await determineRole();showApp()}
+async function login(email,password){let {url,key}=cfg();if(!url||!key)throw Error('Supabase configuration not loaded');let res=await fetch(url+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'apikey':key,'Content-Type':'application/json'},body:JSON.stringify({email,password})});let data=await res.json();if(!res.ok)throw Error(data.msg||data.error_description||data.error||'Sign in failed');session=data;localStorage.setItem(AUTH,JSON.stringify(data));await determineRole();await loadGuardRoster();showApp()}
 async function determineRole(){let rows=await request('patrol_v7_roles?select=role&user_id=eq.'+encodeURIComponent(session.user.id));role=rows?.[0]?.role||'guard'}
 function showApp(){$('loginView').classList.add('hidden');$('app').classList.remove('hidden');$('accountLabel').textContent=role==='management'?'Management account':'Guard account';$('managementBtn').classList.toggle('hidden',role!=='management');renderHome();renderTasks();updateStatus()}
 function renderHome(){let c=$('patrolList');c.innerHTML=patrols.length?'':'<p class="muted">No V7 patrols saved on this device.</p>';for(let p of [...patrols].reverse()){let e=document.createElement('div');e.className='entry';e.innerHTML=`<strong>${esc(defOf(p.type)?.title||p.type)}</strong><p class="muted">${esc(p.guard)} · ${esc(p.shift)} · ${p.finished?'Finished':'Active'} · ${p.synced?'Synced':'Pending sync'}</p>`;let b=document.createElement('button');b.className='secondary';b.textContent='Open patrol';b.onclick=()=>openPatrol(p.id);e.append(b);c.append(e)}}
@@ -62,7 +126,7 @@ async function refreshRecords(){if(role!=='management')return;try{let rows=await
 function allRecords(){let m=new Map(serverPatrols.map(p=>[p.id,p]));patrols.forEach(p=>m.set(p.id,p));return [...m.values()]}
 function renderRecords(){let c=$('records');c.innerHTML='';for(let p of allRecords()){let e=document.createElement('div');e.className='entry';let checks=Object.values(p.locations||{}).reduce((n,l)=>n+Object.keys(l.checks||{}).length,0);e.textContent=`${defOf(p.type)?.title||p.type} · ${p.guard} · ${p.supervisor} · ${p.shift} · ${checks} checks · ${p.finished?'Finished':'Active'}`;c.append(e)}if(!allRecords().length)c.textContent='No records available.'}
 function csv(){let rows=[['Patrol ID','Patrol Type','Shift','Supervisor','Starting Guard','Location','Check Number','Checking Guard','Checked At','Comment','Has Photo','Finished']];for(let p of allRecords())for(let a of areas(p.type)){let d=p.locations?.[a.key]||{};let checks=Object.entries(d.checks||{});if(!checks.length)rows.push([p.id,p.type,p.shift,p.supervisor,p.guard,a.name,'','','',d.comment||'',!!d.photo,p.finished]);else for(let [n,r] of checks)rows.push([p.id,p.type,p.shift,p.supervisor,p.guard,a.name,n,r.guard,r.time,d.comment||'',!!d.photo,p.finished])}let content='\uFEFF'+rows.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\r\n');let url=URL.createObjectURL(new Blob([content],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download='CitiField_V7_Management.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-async function init(){try{db=await dbOpen();let items=await dbAll();patrols=items.filter(x=>x.key.startsWith('patrol:')).map(x=>x.value);tasks=items.filter(x=>x.key.startsWith('task:')).map(x=>x.value);fill('supervisor',supervisors);for(let id of ['guard','checkingGuard','taskGuard'])fill(id,fallbackGuards);let saved=localStorage.getItem(AUTH);if(saved){session=JSON.parse(saved);if(session.expires_at&&Date.now()/1000>session.expires_at){session=null;localStorage.removeItem(AUTH)}else{try{await determineRole();showApp()}catch(e){session=null;localStorage.removeItem(AUTH);banner('Please sign in again: '+e.message)}}}updateStatus()}catch(e){banner('Offline storage unavailable: '+e.message);$('loginForm').querySelector('button').disabled=true}}
+async function init(){try{db=await dbOpen();let items=await dbAll();patrols=items.filter(x=>x.key.startsWith('patrol:')).map(x=>x.value);tasks=items.filter(x=>x.key.startsWith('task:')).map(x=>x.value);fill('supervisor',supervisors);for(let id of ['guard','checkingGuard','taskGuard'])fill(id,fallbackGuards);let saved=localStorage.getItem(AUTH);if(saved){session=JSON.parse(saved);if(session.expires_at&&Date.now()/1000>session.expires_at){session=null;localStorage.removeItem(AUTH)}else{tryawait determineRole();await loadGuardRoster();showApp()}catch(e){session=null;localStorage.removeItem(AUTH);banner('Please sign in again: '+e.message)}}}updateStatus()}catch(e){banner('Offline storage unavailable: '+e.message);$('loginForm').querySelector('button').disabled=true}}
 $('loginForm').onsubmit=async e=>{e.preventDefault();$('loginMessage').textContent='Signing in…';try{await login($('email').value,$('password').value);$('loginMessage').textContent='';syncAll()}catch(err){$('loginMessage').textContent=err.message}};
 $('startBtn').onclick=startPatrol;$('backBtn').onclick=()=>{view('homeView');renderHome()};$('finishBtn').onclick=finish;$('homeBtn').onclick=()=>{view('homeView');renderHome()};$('managementBtn').onclick=()=>{if(role!=='management')return;view('managementView');renderRecords();refreshRecords()};$('syncBtn').onclick=syncAll;$('refreshBtn').onclick=refreshRecords;$('exportBtn').onclick=csv;$('assignBtn').onclick=assign;$('signoutBtn').onclick=()=>{session=null;role='guard';localStorage.removeItem(AUTH);$('app').classList.add('hidden');$('loginView').classList.remove('hidden');banner('Signed out. Local patrols remain on this device.')};window.addEventListener('online',()=>{updateStatus();syncAll()});window.addEventListener('offline',updateStatus);init();
 </script></body></html>
