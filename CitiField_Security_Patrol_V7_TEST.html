@@ -66,23 +66,67 @@ function dbOpen(){return new Promise((resolve,reject)=>{let r=indexedDB.open(DB,
 function dbAll(){return new Promise((resolve,reject)=>{let r=db.transaction(STORE).objectStore(STORE).getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
 function dbPut(key,value){return new Promise((resolve,reject)=>{let t=db.transaction(STORE,'readwrite');t.objectStore(STORE).put({key,value});t.oncomplete=resolve;t.onerror=()=>reject(t.error)})}
 async function persistPatrol(p){await dbPut('patrol:'+p.id,p)}async function persistTask(t){await dbPut('task:'+t.id,t)}
+
 function fill(id, names) {
   const dropdown = $(id);
+  const previous = dropdown.value;
+  const searchable = ['guard', 'checkingGuard', 'taskGuard'].includes(id);
+  const allowOther = ['guard', 'checkingGuard'].includes(id);
+  const roster = [...new Set(names)];
 
-  dropdown.innerHTML =
-    '<option value="">Select name</option>' +
-    names.map(n =>
-      `<option value="${esc(n)}">${esc(n)}</option>`
-    ).join('');
+  function showOptions(query = '') {
+    const selected = dropdown.value;
+    const words = query.toLowerCase().trim().split(/[\s,]+/).filter(Boolean);
 
-  if (id === 'guard' || id === 'checkingGuard') {
-    dropdown.add(new Option(
-      'Other – Enter Name', '__other__'
-    ));
+    const matches = roster.filter(name =>
+      words.every(word => name.toLowerCase().includes(word))
+    );
 
-    dropdown.onchange = function () {
-      if (this.value !== '__other__') return;
+    dropdown.innerHTML = '';
+    dropdown.add(new Option('Select name', ''));
 
+    matches.forEach(name => {
+      dropdown.add(new Option(name, name));
+    });
+
+    if (allowOther) {
+      dropdown.add(new Option('Other – Enter Name', '__other__'));
+    }
+
+    if (matches.includes(selected)) {
+      dropdown.value = selected;
+    }
+  }
+
+  showOptions();
+
+  if (roster.includes(previous)) {
+    dropdown.value = previous;
+  }
+
+  if (!searchable) return;
+
+  let search = document.getElementById(id + 'Search');
+
+  if (!search) {
+    search = document.createElement('input');
+    search.id = id + 'Search';
+    search.type = 'search';
+    search.placeholder = 'Type first or last name...';
+    search.autocomplete = 'off';
+    search.style.width = '100%';
+    search.style.marginBottom = '6px';
+    dropdown.before(search);
+  }
+
+  search.value = '';
+
+  search.oninput = function () {
+    showOptions(this.value);
+  };
+
+  dropdown.onchange = function () {
+    if (this.value === '__other__') {
       const name = prompt(
         'Enter your name (Last Name, First Name):'
       )?.trim();
@@ -92,19 +136,26 @@ function fill(id, names) {
         return;
       }
 
-      const existing = [...this.options].find(
-        o => o.value.toLowerCase() === name.toLowerCase()
+      const existing = roster.find(
+        n => n.toLowerCase() === name.toLowerCase()
       );
 
-      if (existing) {
-        this.value = existing.value;
-      } else {
-        this.add(new Option(name, name), this.options.length - 1);
-        this.value = name;
-      }
-    };
-  }
+      const chosen = existing || name;
+
+      if (!existing) roster.push(chosen);
+
+      search.value = '';
+      showOptions();
+      this.value = chosen;
+    } else if (this.value) {
+      const chosen = this.value;
+      search.value = '';
+      showOptions();
+      this.value = chosen;
+    }
+  };
 }
+
 function defOf(type){return definitions.find(d=>d.id===type)}function areas(type){return defOf(type).sections.flatMap(([section,items])=>items.map((name,i)=>({key:section+'::'+i,section,name})))}
 function updateStatus(){let pending=patrols.filter(p=>!p.synced).length+tasks.filter(t=>!t.synced).length;$('syncStatus').textContent=(navigator.onLine?'Online':'Offline')+' · '+pending+' pending';banner((navigator.onLine?'Connection detected. ':'Offline mode. ')+(pending?pending+' item(s) awaiting confirmed sync.':'All local records synced or none created.'))}
 async function request(path,options={}){let {url,key}=cfg();if(!url||!key)throw Error('Supabase config missing');let headers={'apikey':key,'Content-Type':'application/json',...options.headers};if(session?.access_token)headers.Authorization='Bearer '+session.access_token;let res=await fetch(url+'/rest/v1/'+path,{...options,headers});let txt=await res.text();if(!res.ok)throw Error('Supabase '+res.status+': '+txt.slice(0,240));return txt?JSON.parse(txt):null}
