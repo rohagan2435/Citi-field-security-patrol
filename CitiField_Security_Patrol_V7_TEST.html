@@ -311,6 +311,30 @@ async function finish(){let p=current();if(!p||p.finished||!confirm('Finish this
 function taskUI(t,manage=false){let e=document.createElement('div');e.className='entry';e.innerHTML=`<strong>${esc(t.guard)}</strong><p>${esc(t.description)}</p><p class="muted">${t.done?'Completed':'Open'} · ${t.synced?'Synced':'Pending sync'}</p>`;if(!t.done){let b=document.createElement('button');b.textContent='Mark complete';b.onclick=async()=>{let c={...t,done:true,doneAt:new Date().toISOString(),synced:false};await persistTask(c);Object.assign(t,c);renderTasks();updateStatus();syncAll()};e.append(b)}return e}
 function renderTasks(){let a=$('guardTasks'),b=$('taskList');a.innerHTML='';b.innerHTML='';for(let t of tasks){if(role==='management')b.append(taskUI(t,true));a.append(taskUI(t))}if(!tasks.length)a.innerHTML='<p class="muted">No tasks stored on this device.</p>'}
 async function assign(){if(role!=='management')return;let guard=$('taskGuard').value,description=$('taskDescription').value.trim();if(!guard||!description)return alert('Choose a guard and enter a task');let t={id:crypto.randomUUID(),guard,description,createdAt:new Date().toISOString(),done:false,synced:false};await persistTask(t);tasks.push(t);$('taskDescription').value='';renderTasks();updateStatus();syncAll()}
+
+async function refreshTasks() {
+  if (!session || !navigator.onLine) return;
+
+  let rows = await request(
+    'patrol_v7_tasks?select=payload&order=updated_at.desc&limit=1000'
+  );
+
+  for (let row of rows) {
+    let incoming = {...row.payload, synced: true};
+    let existing = tasks.find(t => t.id === incoming.id);
+
+    if (!existing) {
+      await persistTask(incoming);
+      tasks.push(incoming);
+    } else if (existing.synced) {
+      await persistTask(incoming);
+      Object.assign(existing, incoming);
+    }
+  }
+
+  renderTasks();
+  updateStatus();
+}
 async function syncAll(){if(busy||!navigator.onLine||!session)return;busy=true;try{for(let p of patrols.filter(x=>!x.synced)){await request('patrol_v7_records?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({id:p.id,owner_id:session.user.id,payload:p,updated_at:new Date().toISOString()})});p.synced=true;await persistPatrol(p)}for(let t of tasks.filter(x=>!x.synced)){await request('patrol_v7_tasks?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({id:t.id,owner_id:session.user.id,payload:t,updated_at:new Date().toISOString()})});t.synced=true;await persistTask(t)}banner('Supabase sync confirmed.')}catch(e){banner('Sync not complete: '+e.message)}finally{busy=false;renderHome();renderTasks();updateStatus()}}
 async function refreshRecords(){if(role!=='management')return;try{let rows=await request('patrol_v7_records?select=payload&order=updated_at.desc&limit=1000');serverPatrols=rows.map(x=>x.payload);let trows=await request('patrol_v7_tasks?select=payload&order=updated_at.desc&limit=1000');for(let x of trows){let t=x.payload;if(!tasks.some(z=>z.id===t.id)){tasks.push({...t,synced:true});await persistTask({...t,synced:true})}}renderTasks();renderRecords()}catch(e){banner('Could not refresh management: '+e.message)}}
 function allRecords(){let m=new Map(serverPatrols.map(p=>[p.id,p]));patrols.forEach(p=>m.set(p.id,p));return [...m.values()]}
